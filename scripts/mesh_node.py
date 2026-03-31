@@ -51,9 +51,11 @@ class MeshNode:
         rospy.loginfo(f"{self.namespace} SENT distress signal")
 
     def run(self):
-        while not rospy.is_shutdown():
+        while self.pub.get_num_connections() == 0:
+            rospy.loginfo("Waiting for subscribers...")
+            rospy.sleep(1)
 
-            # Only robot1 sends, and only once
+        while not rospy.is_shutdown():
             if self.namespace == "robot1" and not self.sent:
                 self.send_distress()
                 self.sent = True
