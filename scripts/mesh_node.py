@@ -2,8 +2,10 @@
 
 import rospy
 from std_msgs.msg import String
+from geometry_msgs.msg import Twist
 import json
 import uuid
+
 
 class MeshNode:
 
@@ -13,19 +15,22 @@ class MeshNode:
         # 🧠 Identity
         self.namespace = rospy.get_namespace().strip("/")
 
-        # 📡 Communication
+        # 📡 Publishers
         self.pub = rospy.Publisher("/mesh_topic", String, queue_size=10)
+        self.vel_pub = rospy.Publisher(f"/{self.namespace}/cmd_vel", Twist, queue_size=10)
+
+        # 📡 Subscriber
         self.sub = rospy.Subscriber("/mesh_topic", String, self.callback)
 
-        # 🧠 Memory (duplicate filtering)
+        # 🧠 Memory
         self.received_ids = set()
 
-        # 🚨 Control sending once
+        # 🚨 Send control
         self.sent = False
 
         self.rate = rospy.Rate(1)
 
-    # 📡 Callback → when message is received
+    # 📡 Callback
     def callback(self, msg):
         data = json.loads(msg.data)
         msg_id = data["id"]
@@ -34,22 +39,25 @@ class MeshNode:
         if msg_id in self.received_ids:
             return
 
-        # Mark as seen
         self.received_ids.add(msg_id)
 
         rospy.loginfo(f"{self.namespace} RECEIVED: {data}")
 
-        # 🚨 HIGH priority handling
+        # 🚨 React to distress
         if data["priority"] == "HIGH":
-            rospy.loginfo(f"{self.namespace} processing HIGH priority")
+            rospy.loginfo(f"{self.namespace} reacting to distress")
 
-        # 📡 RELAY LOGIC (🔥 core of mesh)
-        # Forward message to others (except original sender)
+            if self.namespace != data["sender"]:
+                self.move_forward()
+                rospy.sleep(2)   # move for 2 seconds
+                self.stop()
+
+        # 📡 Relay
         if self.namespace != data["sender"]:
             rospy.loginfo(f"{self.namespace} RELAYING message")
             self.pub.publish(msg.data)
 
-    # 🚨 Send distress (only robot1)
+    # 🚨 Send distress
     def send_distress(self):
         msg = {
             "id": str(uuid.uuid4()),
@@ -61,8 +69,15 @@ class MeshNode:
         self.pub.publish(json.dumps(msg))
         rospy.loginfo(f"{self.namespace} SENT distress signal")
 
+    # 🤖 Movement
+    def move_forward(self):
+        move = Twist()
+        move.linear.x = 0.2
+        move.angular.z = 0.0
+        self.vel_pub.publish(move)
+
     def run(self):
-        rospy.sleep(2)  # wait for all nodes to start
+        rospy.sleep(2)
 
         while not rospy.is_shutdown():
 
@@ -71,7 +86,11 @@ class MeshNode:
                 self.sent = True
 
             self.rate.sleep()
-
+    def stop(self):
+        move = Twist()
+        move.linear.x = 0.0
+        move.angular.z = 0.0
+        self.vel_pub.publish(move)
 
 if __name__ == "__main__":
     node = MeshNode()
