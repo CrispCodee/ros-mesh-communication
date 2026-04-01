@@ -14,6 +14,9 @@ class MeshNode:
     def __init__(self):
         rospy.init_node("mesh_node")
 
+        self.last_trigger_time = 0
+        self.cooldown = 3   # seconds
+
         # 🧠 Identity
         self.namespace = rospy.get_namespace().strip("/")
 
@@ -103,12 +106,15 @@ class MeshNode:
 
             rospy.loginfo(f"{self.namespace} distance to {robot}: {dist}")
 
-            if dist < 1.0:
+            if dist < 3.0:
                 rospy.loginfo(f"{self.namespace} CLOSE to {robot}")
 
                 if self.namespace == "robot1" and not self.sent:
                     self.send_distress()
                     self.sent = True
+
+                # 🤖 MOVE TOWARD THAT ROBOT
+                self.move_towards(x, y)
         
     
     
@@ -143,6 +149,20 @@ class MeshNode:
             self.check_distance()
             self.rate.sleep()
 
+    def move_towards(self, target_x, target_y):
+        move = Twist()
+
+        dx = target_x - self.position.x
+        dy = target_y - self.position.y
+
+        angle = math.atan2(dy, dx)
+
+        move.linear.x = 0.2
+
+        # 🔥 LIMIT rotation speed (PUT IT HERE)
+        move.angular.z = max(min(angle, 1.0), -1.0)
+
+        self.vel_pub.publish(move)
 
 if __name__ == "__main__":
     node = MeshNode()
