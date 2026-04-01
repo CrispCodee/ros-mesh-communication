@@ -10,35 +10,46 @@ class MeshNode:
     def __init__(self):
         rospy.init_node("mesh_node")
 
-        # Identity
+        # 🧠 Identity
         self.namespace = rospy.get_namespace().strip("/")
 
-        # Communication
+        # 📡 Communication
         self.pub = rospy.Publisher("/mesh_topic", String, queue_size=10)
         self.sub = rospy.Subscriber("/mesh_topic", String, self.callback)
 
-        # Memory (for duplicate filtering)
+        # 🧠 Memory (duplicate filtering)
         self.received_ids = set()
 
-        # Control sending once
+        # 🚨 Control sending once
         self.sent = False
 
         self.rate = rospy.Rate(1)
 
-    # Callback = when message is received
+    # 📡 Callback → when message is received
     def callback(self, msg):
         data = json.loads(msg.data)
         msg_id = data["id"]
 
-        # Duplicate filter
+        # 🔁 Ignore duplicates
         if msg_id in self.received_ids:
             return
 
+        # Mark as seen
         self.received_ids.add(msg_id)
 
-        rospy.loginfo(f"{self.namespace} processed: {data}")
+        rospy.loginfo(f"{self.namespace} RECEIVED: {data}")
 
-    # Send distress (only robot1)
+        # 🚨 HIGH priority handling
+        if data["priority"] == "HIGH":
+            rospy.loginfo(f"{self.namespace} processing HIGH priority")
+
+        # 📡 RELAY LOGIC (🔥 core of mesh)
+        # Forward message to others (except original sender)
+        if self.namespace != data["sender"]:
+            rospy.loginfo(f"{self.namespace} RELAYING message")
+            self.pub.publish(msg.data)
+
+    # 🚨 Send distress (only robot1)
     def send_distress(self):
         msg = {
             "id": str(uuid.uuid4()),
@@ -51,11 +62,10 @@ class MeshNode:
         rospy.loginfo(f"{self.namespace} SENT distress signal")
 
     def run(self):
-        while self.pub.get_num_connections() == 0:
-            rospy.loginfo("Waiting for subscribers...")
-            rospy.sleep(1)
+        rospy.sleep(2)  # wait for all nodes to start
 
         while not rospy.is_shutdown():
+
             if self.namespace == "robot1" and not self.sent:
                 self.send_distress()
                 self.sent = True
