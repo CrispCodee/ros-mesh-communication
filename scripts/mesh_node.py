@@ -95,11 +95,13 @@ class MeshNode:
         if self.position is None:
             return
 
-        for robot, (x, y) in self.other_positions.items():
+        for robot, (x, y) in list(self.other_positions.items()):
             dx = self.position.x - x
             dy = self.position.y - y
 
             dist = math.sqrt(dx**2 + dy**2)
+
+            rospy.loginfo(f"{self.namespace} distance to {robot}: {dist}")
 
             if dist < 1.0:
                 rospy.loginfo(f"{self.namespace} CLOSE to {robot}")
@@ -107,7 +109,9 @@ class MeshNode:
                 if self.namespace == "robot1" and not self.sent:
                     self.send_distress()
                     self.sent = True
-
+        
+    
+    
     # 🚨 SEND DISTRESS
     def send_distress(self):
         msg = {
