@@ -3,8 +3,10 @@
 import rospy
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
 import json
 import uuid
+import math
 
 
 class MeshNode:
@@ -15,27 +17,38 @@ class MeshNode:
         # 🧠 Identity
         self.namespace = rospy.get_namespace().strip("/")
 
-        # 📡 Publishers
+        # 📡 Communication
         self.pub = rospy.Publisher("/mesh_topic", String, queue_size=10)
+        self.sub = rospy.Subscriber("/mesh_topic", String, self.callback)
+
+        # 🤖 Movement
         self.vel_pub = rospy.Publisher(f"/{self.namespace}/cmd_vel", Twist, queue_size=10)
 
-        # 📡 Subscriber
-        self.sub = rospy.Subscriber("/mesh_topic", String, self.callback)
+        # 📍 Position
+        self.position = None
+        self.other_positions = {}
+
+        self.odom_sub = rospy.Subscriber(
+            f"/{self.namespace}/odom",
+            Odometry,
+            self.odom_callback
+        )
+
+        self.pos_pub = rospy.Publisher("/positions", String, queue_size=10)
+        self.pos_sub = rospy.Subscriber("/positions", String, self.pos_callback)
 
         # 🧠 Memory
         self.received_ids = set()
 
-        # 🚨 Send control
         self.sent = False
 
-        self.rate = rospy.Rate(1)
+        self.rate = rospy.Rate(5)
 
-    # 📡 Callback
+    # 📡 MESSAGE CALLBACK
     def callback(self, msg):
         data = json.loads(msg.data)
         msg_id = data["id"]
 
-        # 🔁 Ignore duplicates
         if msg_id in self.received_ids:
             return
 
@@ -43,21 +56,59 @@ class MeshNode:
 
         rospy.loginfo(f"{self.namespace} RECEIVED: {data}")
 
-        # 🚨 React to distress
         if data["priority"] == "HIGH":
-            rospy.loginfo(f"{self.namespace} reacting to distress")
-
             if self.namespace != data["sender"]:
                 self.move_forward()
-                rospy.sleep(2)   # move for 2 seconds
+                rospy.sleep(2)
                 self.stop()
 
-        # 📡 Relay
         if self.namespace != data["sender"]:
-            rospy.loginfo(f"{self.namespace} RELAYING message")
+            rospy.loginfo(f"{self.namespace} RELAYING")
             self.pub.publish(msg.data)
 
-    # 🚨 Send distress
+    # 📍 ODOM
+    def odom_callback(self, msg):
+        self.position = msg.pose.pose.position
+
+    # 📡 SHARE POSITION
+    def publish_position(self):
+        if self.position is None:
+            return
+
+        msg = {
+            "robot": self.namespace,
+            "x": self.position.x,
+            "y": self.position.y
+        }
+
+        self.pos_pub.publish(json.dumps(msg))
+
+    # 📡 RECEIVE POSITIONS
+    def pos_callback(self, msg):
+        data = json.loads(msg.data)
+
+        if data["robot"] != self.namespace:
+            self.other_positions[data["robot"]] = (data["x"], data["y"])
+
+    # 📏 DISTANCE CHECK
+    def check_distance(self):
+        if self.position is None:
+            return
+
+        for robot, (x, y) in self.other_positions.items():
+            dx = self.position.x - x
+            dy = self.position.y - y
+
+            dist = math.sqrt(dx**2 + dy**2)
+
+            if dist < 1.0:
+                rospy.loginfo(f"{self.namespace} CLOSE to {robot}")
+
+                if self.namespace == "robot1" and not self.sent:
+                    self.send_distress()
+                    self.sent = True
+
+    # 🚨 SEND DISTRESS
     def send_distress(self):
         msg = {
             "id": str(uuid.uuid4()),
@@ -67,30 +118,27 @@ class MeshNode:
         }
 
         self.pub.publish(json.dumps(msg))
-        rospy.loginfo(f"{self.namespace} SENT distress signal")
+        rospy.loginfo(f"{self.namespace} SENT distress")
 
-    # 🤖 Movement
+    # 🤖 MOVE
     def move_forward(self):
         move = Twist()
         move.linear.x = 0.2
-        move.angular.z = 0.0
         self.vel_pub.publish(move)
 
+    def stop(self):
+        move = Twist()
+        self.vel_pub.publish(move)
+
+    # 🔁 MAIN LOOP
     def run(self):
         rospy.sleep(2)
 
         while not rospy.is_shutdown():
-
-            if self.namespace == "robot1" and not self.sent:
-                self.send_distress()
-                self.sent = True
-
+            self.publish_position()
+            self.check_distance()
             self.rate.sleep()
-    def stop(self):
-        move = Twist()
-        move.linear.x = 0.0
-        move.angular.z = 0.0
-        self.vel_pub.publish(move)
+
 
 if __name__ == "__main__":
     node = MeshNode()
