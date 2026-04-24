@@ -156,7 +156,7 @@ class MeshNode:
 
             self.last_trigger_time = current_time
 
-            if min_dist < 1.0:
+            if min_dist < 2.0:
                 self.send_distress("HIGH", "person_detected")
             elif min_dist < 3.0:
                 self.send_distress("MID", "robot_nearby")
@@ -200,6 +200,8 @@ class MeshNode:
 
     def run(self):
         rospy.sleep(2)
+        if self.namespace == "robot1":
+            self.send_distress("LOW", "area_scanned")
 
         while not rospy.is_shutdown():
             self.publish_position()
