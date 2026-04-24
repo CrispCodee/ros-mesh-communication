@@ -35,11 +35,12 @@ class MeshNode:
         self.pos_sub = rospy.Subscriber("/positions", String, self.pos_callback)
 
         self.received_ids = set()
-        self.sent = False
+        self.duplicate_count = 0
+        self.processed_count = 0
+
         self.last_trigger_time = 0
         self.cooldown = 8
 
-        # patrol
         self.last_turn_time = 0
         self.current_turn = 0.0
 
@@ -53,39 +54,46 @@ class MeshNode:
         data = json.loads(msg.data)
         msg_id = data["id"]
 
+        # duplicate filter
         if msg_id in self.received_ids:
+            self.duplicate_count += 1
+            rospy.loginfo(f"[{self.namespace.upper()}] DUPLICATE DROPPED (total dropped: {self.duplicate_count})")
             return
 
         self.received_ids.add(msg_id)
+        self.processed_count += 1
 
         rospy.loginfo(f"")
         rospy.loginfo(f"[{self.namespace.upper()}] *** MESSAGE RECEIVED ***")
-        rospy.loginfo(f"[{self.namespace.upper()}]   From     : {data['sender']}")
-        rospy.loginfo(f"[{self.namespace.upper()}]   Msg ID   : {data['id'][:8]}...")
-        rospy.loginfo(f"[{self.namespace.upper()}]   Priority : {data['priority']}")
-        rospy.loginfo(f"[{self.namespace.upper()}]   Content  : {data['data']}")
+        rospy.loginfo(f"[{self.namespace.upper()}]   From      : {data['sender']}")
+        rospy.loginfo(f"[{self.namespace.upper()}]   Msg ID    : {data['id'][:8]}...")
+        rospy.loginfo(f"[{self.namespace.upper()}]   Priority  : {data['priority']}")
+        rospy.loginfo(f"[{self.namespace.upper()}]   Content   : {data['data']}")
+        rospy.loginfo(f"[{self.namespace.upper()}]   Hops so far: {data['hops']}")
 
         if data["priority"] == "HIGH":
-            rospy.loginfo(f"[{self.namespace.upper()}]   ACTION   : HIGH PRIORITY - Relaying immediately")
+            rospy.loginfo(f"[{self.namespace.upper()}]   ACTION    : HIGH PRIORITY - Relaying immediately")
 
         elif data["priority"] == "MID":
-            rospy.loginfo(f"[{self.namespace.upper()}]   ACTION   : MID PRIORITY - Relaying with delay")
+            rospy.loginfo(f"[{self.namespace.upper()}]   ACTION    : MID PRIORITY - Relaying with delay")
 
         elif data["priority"] == "LOW":
-            rospy.loginfo(f"[{self.namespace.upper()}]   ACTION   : LOW PRIORITY - Not relaying")
+            rospy.loginfo(f"[{self.namespace.upper()}]   ACTION    : LOW PRIORITY - Not relaying")
 
         if self.namespace != data["sender"]:
             if data["priority"] == "HIGH":
-                rospy.loginfo(f"[{self.namespace.upper()}]   RELAY    : Forwarding immediately")
-                self.pub.publish(msg.data)
+                data["hops"] += 1
+                rospy.loginfo(f"[{self.namespace.upper()}]   RELAY     : Forwarding immediately (hop {data['hops']})")
+                self.pub.publish(json.dumps(data))
 
             elif data["priority"] == "MID":
-                rospy.loginfo(f"[{self.namespace.upper()}]   RELAY    : Forwarding after 2s delay")
+                data["hops"] += 1
+                rospy.loginfo(f"[{self.namespace.upper()}]   RELAY     : Forwarding after 2s delay (hop {data['hops']})")
                 rospy.sleep(2)
-                self.pub.publish(msg.data)
+                self.pub.publish(json.dumps(data))
 
             elif data["priority"] == "LOW":
-                rospy.loginfo(f"[{self.namespace.upper()}]   RELAY    : Dropped (LOW priority)")
+                rospy.loginfo(f"[{self.namespace.upper()}]   RELAY     : Dropped (LOW priority)")
 
         rospy.loginfo(f"[{self.namespace.upper()}] *** END MESSAGE ***")
         rospy.loginfo(f"")
@@ -127,10 +135,10 @@ class MeshNode:
                 min_dist = dist
                 closest_robot = robot
 
+        # collision avoidance
         if min_dist < 0.3:
             move = Twist()
-            move.linear.x = -0.1  # back up slightly
-             # odd robots turn left, even robots turn right
+            move.linear.x = -0.1
             if self.namespace[-1] in ['1', '3']:
                 move.angular.z = 1.5
             else:
@@ -148,12 +156,10 @@ class MeshNode:
 
             self.last_trigger_time = current_time
 
-            
             if min_dist < 1.0:
                 self.send_distress("HIGH", "person_detected")
             elif min_dist < 3.0:
                 self.send_distress("MID", "robot_nearby")
-            
 
     def send_distress(self, priority, data_content):
         msg_id = str(uuid.uuid4())
@@ -161,26 +167,28 @@ class MeshNode:
             "id": msg_id,
             "sender": self.namespace,
             "priority": priority,
-            "data": data_content
+            "data": data_content,
+            "timestamp": rospy.get_time(),
+            "hops": 0
         }
 
         self.pub.publish(json.dumps(msg))
 
         rospy.loginfo(f"")
         rospy.loginfo(f"[{self.namespace.upper()}] *** DISTRESS SIGNAL SENT ***")
-        rospy.loginfo(f"[{self.namespace.upper()}]   Msg ID   : {msg_id[:8]}...")
-        rospy.loginfo(f"[{self.namespace.upper()}]   Priority : {priority}")
-        rospy.loginfo(f"[{self.namespace.upper()}]   Content  : {data_content}")
+        rospy.loginfo(f"[{self.namespace.upper()}]   Msg ID    : {msg_id[:8]}...")
+        rospy.loginfo(f"[{self.namespace.upper()}]   Priority  : {priority}")
+        rospy.loginfo(f"[{self.namespace.upper()}]   Content   : {data_content}")
+        rospy.loginfo(f"[{self.namespace.upper()}]   Timestamp : {msg['timestamp']:.3f}")
         if self.position:
-            rospy.loginfo(f"[{self.namespace.upper()}]   Position : ({self.position.x:.2f}, {self.position.y:.2f})")
+            rospy.loginfo(f"[{self.namespace.upper()}]   Position  : ({self.position.x:.2f}, {self.position.y:.2f})")
         else:
-            rospy.loginfo(f"[{self.namespace.upper()}]   Position : unknown")
+            rospy.loginfo(f"[{self.namespace.upper()}]   Position  : unknown")
         rospy.loginfo(f"")
 
     def patrol(self):
         current_time = rospy.get_time()
 
-        # pick a new random direction every 3 seconds
         if current_time - self.last_turn_time > 3.0:
             self.current_turn = random.uniform(-1.0, 1.0)
             self.last_turn_time = current_time
