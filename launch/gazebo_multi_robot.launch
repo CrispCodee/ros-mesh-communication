@@ -47,4 +47,8 @@
     <node pkg="mesh_comm" type="mesh_node.py" name="mesh_node" output="screen"/>
   </group>
 
+  <!-- Emergency Response Tower -->
+  <group ns="tower">
+      <node pkg="mesh_comm" type="tower_node.py" name="tower_node" output="screen"/>
+  </group>
 </launch>
