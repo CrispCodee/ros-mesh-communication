@@ -7,6 +7,7 @@ from nav_msgs.msg import Odometry
 import json
 import uuid
 import math
+import random
 
 
 class MeshNode:
@@ -36,7 +37,11 @@ class MeshNode:
         self.received_ids = set()
         self.sent = False
         self.last_trigger_time = 0
-        self.cooldown = 3
+        self.cooldown = 8
+
+        # patrol
+        self.last_turn_time = 0
+        self.current_turn = 0.0
 
         self.rate = rospy.Rate(5)
 
@@ -122,6 +127,17 @@ class MeshNode:
                 min_dist = dist
                 closest_robot = robot
 
+        if min_dist < 0.3:
+            move = Twist()
+            move.linear.x = -0.1  # back up slightly
+             # odd robots turn left, even robots turn right
+            if self.namespace[-1] in ['1', '3']:
+                move.angular.z = 1.5
+            else:
+                move.angular.z = -1.5
+            self.vel_pub.publish(move)
+            return
+
         if closest_robot and min_dist < 3.0 and (current_time - self.last_trigger_time > self.cooldown):
             rospy.loginfo(f"")
             rospy.loginfo(f"[{self.namespace.upper()}] --- PROXIMITY DETECTED ---")
@@ -132,12 +148,12 @@ class MeshNode:
 
             self.last_trigger_time = current_time
 
-            if self.namespace == "robot1" and not self.sent:
-                if min_dist < 1.0:
-                    self.send_distress("HIGH", "person_detected")
-                elif min_dist < 3.0:
-                    self.send_distress("MID", "robot_nearby")
-                self.sent = True
+            
+            if min_dist < 1.0:
+                self.send_distress("HIGH", "person_detected")
+            elif min_dist < 3.0:
+                self.send_distress("MID", "robot_nearby")
+            
 
     def send_distress(self, priority, data_content):
         msg_id = str(uuid.uuid4())
@@ -161,12 +177,26 @@ class MeshNode:
             rospy.loginfo(f"[{self.namespace.upper()}]   Position : unknown")
         rospy.loginfo(f"")
 
+    def patrol(self):
+        current_time = rospy.get_time()
+
+        # pick a new random direction every 3 seconds
+        if current_time - self.last_turn_time > 3.0:
+            self.current_turn = random.uniform(-1.0, 1.0)
+            self.last_turn_time = current_time
+
+        move = Twist()
+        move.linear.x = 0.15
+        move.angular.z = self.current_turn
+        self.vel_pub.publish(move)
+
     def run(self):
         rospy.sleep(2)
 
         while not rospy.is_shutdown():
             self.publish_position()
             self.check_distance()
+            self.patrol()
             self.rate.sleep()
 
 
