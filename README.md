@@ -50,15 +50,19 @@ Our priority-based protocol and mesh topology were evaluated across 432 raw mess
 
 ### Performance Metrics
 
-![Dashboard Key Metrics](https://github.com/user-attachments/assets/43b18420-1ded-4e82-9479-6216943bf4ea)
+![Dashboard Key Metrics](https://github.com/user-attachments/assets/9c3e51c1-018e-4997-b3c0-2a8234fef0dd)
 
 ### Network Traffic & Latency Profiles
 
-![Simulation Charts](https://github.com/user-attachments/assets/08791efd-1bdb-48ef-9298-ab9fef8ccf29)
+![Simulation Charts](https://github.com/user-attachments/assets/31a9317e-20c9-40a5-86df-2d7c878bb9f4)
+
+### Priority Tier System Specifications
+
+![Priority Tier Reference](https://github.com/user-attachments/assets/63751e61-8f25-4ea9-8697-2c0b9c0d8ab1)
 
 ### Derived Mathematical Model
 
-![Network Mathematical Formulas](https://github.com/user-attachments/assets/a0513753-f569-4f94-94f5-d900a9a23d29)
+![Network Mathematical Formulas](https://github.com/user-attachments/assets/bda8b4ed-4f2e-42f8-bdd9-18deff73f9bf)
 
 ---
 ## System Requirements
