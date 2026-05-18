@@ -15,6 +15,10 @@ events, and relay messages to a stationary tower node based on message
 priority. UUID-based duplicate filtering ensures redundant messages are 
 suppressed at the tower.
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5dea9141-2600-4a56-9dfd-603bfe3a4289" width="70%" alt="Gazebo Simulation Map">
+</p>
+
 ---
 
 ## Features
@@ -26,10 +30,10 @@ suppressed at the tower.
 - Simulated in Gazebo with TurtleBot3 Burger robots
 
 ---
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/5dea9141-2600-4a56-9dfd-603bfe3a4289" width="70%" alt="Gazebo Simulation Map">
-</p>
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c580c530-3ccd-4322-98ad-0c3350b5e149" width="70%" alt="Gazebo Simulation Map">
+</p>
 
 ## Priority Protocol
 
@@ -39,12 +43,27 @@ suppressed at the tower.
 | MID | Robot within 3.0m | 2s delay per hop | Advisory logged |
 | LOW | Default | No relay | Quiet log |
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/c580c530-3ccd-4322-98ad-0c3350b5e149" width="70%" alt="Gazebo Simulation Map">
-</p>
+---
+##  Simulation Analytics & Empirical Results
+
+Our priority-based protocol and mesh topology were evaluated across 432 raw message routing events in Gazebo. 
+
+### Performance Metrics
+
+
+![Dashboard Key Metrics]("https://github.com/user-attachments/assets/43b18420-1ded-4e82-9479-6216943bf4ea")
+
+### Network Traffic & Latency Profiles
+
+
+![Simulation Charts]("https://github.com/user-attachments/assets/08791efd-1bdb-48ef-9298-ab9fef8ccf29")
+
+### Derived Mathematical Model
+
+
+![Network Mathematical Formulas]("https://github.com/user-attachments/assets/a0513753-f569-4f94-94f5-d900a9a23d29")
 
 ---
-
 ## System Requirements
 
 - Ubuntu 20.04 LTS
@@ -54,7 +73,11 @@ suppressed at the tower.
 - Python 3
 
 ---
+## System Diagram
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/55b4fd55-2fef-471f-8b5b-2c92c7dc1f52" width="70%" alt="Gazebo Simulation Map">
+</p>
 
 ## Running the Simulation
 
