@@ -1,4 +1,6 @@
-# ROS Mesh Communication — Priority-Based Multi-Robot Disaster Area Patrol
+# Mitigating Broadcast Storms in Multi-Robot Disaster Response through Priority-Driven Mesh
+
+Communication
 
 A ROS1-based mesh communication system where multiple TurtleBot3 robots 
 patrol a simulated disaster area and relay distress messages to a central 
