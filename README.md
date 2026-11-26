@@ -119,7 +119,7 @@ processing compared to an unfiltered baseline.
 - Kriselle Thomas
 - Haninta Baby Joseph
 
-Rajagiri School of Engineering and Technology (RSET), Kakkanad
+Rajagiri School of Engineering and Technology (RSET), (Autonomous), Kakkanad
 
 ---
 
